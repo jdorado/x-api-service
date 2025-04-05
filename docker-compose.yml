@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  x-api:
+    container_name: x-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "6011:6011"
+    volumes:
+      - ./cookies:/app/cookies
+      - ./.env:/app/.env
+    environment:
+      - NODE_ENV=development
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6011/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  mongo:
+    container_name: x-api-mongo
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  mongo_data:

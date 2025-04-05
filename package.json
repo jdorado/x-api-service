@@ -1,0 +1,23 @@
+{
+  "name": "x-api-service",
+  "version": "1.0.0",
+  "description": "REST API wrapper for agent-twitter-client",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "nodemon": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "agent-twitter-client": "^0.0.18",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mongodb": "^6.12.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

@@ -9,8 +9,16 @@ export class TwitterHelper {
 
     async getProfile(credentials) {
         try {
+            // Check in-memory cache first
             if (TwitterHelper.profiles[credentials.username]) {
                 return TwitterHelper.profiles[credentials.username];
+            }
+
+            // Check MongoDB cache
+            const cachedProfile = await this.client.getCachedData(credentials.username, 'profile');
+            if (cachedProfile) {
+                TwitterHelper.profiles[credentials.username] = cachedProfile;
+                return cachedProfile;
             }
 
             const client = await this.client.getClient(credentials);
@@ -24,6 +32,7 @@ export class TwitterHelper {
             };
 
             TwitterHelper.profiles[credentials.username] = profile;
+            await this.client.setCachedData(credentials.username, 'profile', profile);
             return profile;
         } catch (error) {
             console.error('Error getting profile:', error.message);
@@ -33,10 +42,16 @@ export class TwitterHelper {
 
     async getTargetProfile(credentials, targetUsername) {
         try {
+            // Check MongoDB cache
+            const cachedProfile = await this.client.getCachedData(targetUsername, 'target_profile');
+            if (cachedProfile) {
+                return cachedProfile;
+            }
+
             const client = await this.client.getClient(credentials);
             const userProfile = await client.getProfile(targetUsername.replace('@', ''));
 
-            return {
+            const profile = {
                 id: userProfile.userId,
                 username: targetUsername,
                 screenName: userProfile.name || targetUsername,
@@ -50,6 +65,10 @@ export class TwitterHelper {
                 location: userProfile.location || '',
                 website: userProfile.website || ''
             };
+
+            // Cache the profile
+            await this.client.setCachedData(targetUsername, 'target_profile', profile);
+            return profile;
         } catch (error) {
             console.error('Error getting target profile:', error.message);
             return { status: 500, error: 'Failed to fetch target profile' };
@@ -165,6 +184,43 @@ export class TwitterHelper {
         } catch (error) {
             console.error('Error sending tweet with poll:', error.message);
             return { status: 500, error: 'Failed to send tweet with poll' };
+        }
+    }
+
+    async getFollowing(credentials, userId, count = 100) {
+        try {
+            // Check MongoDB cache
+            const cachedFollowing = await this.client.getCachedData(userId, 'following');
+            if (cachedFollowing) {
+                return cachedFollowing;
+            }
+
+            const client = await this.client.getClient(credentials);
+            const following = [];
+            
+            // Get the AsyncGenerator from the client
+            const followingGenerator = client.getFollowing(userId, count);
+            
+            // Iterate through the generator and collect profiles
+            for await (const profile of followingGenerator) {
+                following.push({
+                    id: profile.userId,
+                    username: profile.username,
+                    name: profile.name,
+                    bio: profile.biography || '',
+                    followersCount: profile.followersCount || 0,
+                    followingCount: profile.followingCount || 0,
+                    isVerified: profile.isVerified || false,
+                    profileImageUrl: profile.avatar
+                });
+            }
+            
+            // Cache the following list
+            await this.client.setCachedData(userId, 'following', following);
+            return following;
+        } catch (error) {
+            console.error('Error getting following:', error.message);
+            return { status: 500, error: 'Failed to fetch following users' };
         }
     }
 }

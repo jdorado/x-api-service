@@ -510,6 +510,56 @@ app.post('/api/tweet/:id', validateCredentials, async (req, res) => {
     }
 });
 
+/**
+ * @swagger
+ * /api/following/{userId}:
+ *   post:
+ *     summary: Get users followed by a specific user
+ *     description: Retrieve a list of users that a specific user is following
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the user whose following list to retrieve
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             allOf:
+ *               - $ref: '#/components/schemas/Credentials'
+ *               - type: object
+ *                 properties:
+ *                   count:
+ *                     type: integer
+ *                     description: Number of following users to retrieve
+ *                     default: 100
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved following list
+ *       500:
+ *         description: Error retrieving following list
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+app.post('/api/following/:userId', validateCredentials, async (req, res) => {
+    try {
+        const { count = 100 } = req.body;
+        const following = await twitterHelper.getFollowing(
+            req.body,
+            req.params.userId,
+            count
+        );
+        res.json(following);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
     console.log(`API Documentation available at http://localhost:${port}/docs`);

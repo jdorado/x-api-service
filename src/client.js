@@ -160,4 +160,46 @@ export class TwitterClient {
         TwitterClient.instances[username] = client;
         return client;
     }
+
+    async getCachedData(key, type) {
+        try {
+            const mongoClient = await this.initMongoClient();
+            const db = mongoClient.db(this.dbName);
+            const collection = db.collection('twitter_cache');
+            
+            const cacheEntry = await collection.findOne({ _id: `${type}_${key}` });
+            
+            if (!cacheEntry) return null;
+            
+            // Check if cache is still valid (12 hours)
+            const cacheAge = Date.now() - cacheEntry.timestamp;
+            if (cacheAge > 43200000) return null; // 12 hours in milliseconds
+            
+            return cacheEntry.data;
+        } catch (error) {
+            console.error('Error getting cached data:', error.message);
+            return null;
+        }
+    }
+
+    async setCachedData(key, type, data) {
+        try {
+            const mongoClient = await this.initMongoClient();
+            const db = mongoClient.db(this.dbName);
+            const collection = db.collection('twitter_cache');
+            
+            await collection.updateOne(
+                { _id: `${type}_${key}` },
+                {
+                    $set: {
+                        data,
+                        timestamp: Date.now()
+                    }
+                },
+                { upsert: true }
+            );
+        } catch (error) {
+            console.error('Error setting cached data:', error.message);
+        }
+    }
 }

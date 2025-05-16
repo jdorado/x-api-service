@@ -2,6 +2,7 @@ import { TwitterClient } from './client.js';
 
 export class TwitterHelper {
     static profiles = {};
+    static THIRTY_MINUTES_MS = 30 * 60 * 1000;
 
     constructor() {
         this.client = new TwitterClient();
@@ -85,25 +86,50 @@ export class TwitterHelper {
         }
     }
 
-    async getUserTweets(credentials, userId, count) {
+    async getUserTweets(credentials, userId, count, useCache = true) {
         try {
+            // Check cache if enabled
+            if (useCache) {
+                const cachedTweets = await this.client.getCachedData(userId, 'user_tweets', TwitterHelper.THIRTY_MINUTES_MS);
+                if (cachedTweets) {
+                    return cachedTweets;
+                }
+            }
+
             const client = await this.client.getClient(credentials);
             const response = await client.getUserTweets(userId, count);
-            return response.tweets;
+            const tweets = response.tweets;
+
+            // Cache the new results if caching is enabled and we have valid data
+            if (useCache && tweets && tweets.length > 0) {
+                await this.client.setCachedData(userId, 'user_tweets', tweets, TwitterHelper.THIRTY_MINUTES_MS);
+            }
+
+            return tweets;
         } catch (error) {
             console.error('Error getting user tweets:', error.message);
             return { status: 500, error: 'Failed to fetch user tweets' };
         }
     }
 
-    async fetchHomeTimeline(credentials, count, following = false) {
+    async fetchHomeTimeline(credentials, count, following = false, useCache = true) {
         try {
+            const cacheKey = `${credentials.username}_${following ? 'following' : 'home'}_timeline`;
+            
+            // Check cache if enabled
+            if (useCache) {
+                const cachedTimeline = await this.client.getCachedData(cacheKey, 'timeline', TwitterHelper.THIRTY_MINUTES_MS);
+                if (cachedTimeline) {
+                    return cachedTimeline;
+                }
+            }
+
             const client = await this.client.getClient(credentials);
             const timeline = following
                 ? await client.fetchFollowingTimeline(count, [])
                 : await client.fetchHomeTimeline(count, []);
 
-            return timeline.map(tweet => ({
+            const formattedTimeline = timeline.map(tweet => ({
                 id: tweet.rest_id,
                 name: tweet.core?.user_results?.result?.legacy?.name,
                 username: tweet.core?.user_results?.result?.legacy?.screen_name,
@@ -126,19 +152,42 @@ export class TwitterHelper {
                 videos: tweet.legacy?.entities?.media
                     ?.filter(media => media.type === "video") || []
             }));
+
+            // Cache the results if enabled and we have valid data
+            if (useCache && formattedTimeline && formattedTimeline.length > 0) {
+                await this.client.setCachedData(cacheKey, 'timeline', formattedTimeline, TwitterHelper.THIRTY_MINUTES_MS);
+            }
+
+            return formattedTimeline;
         } catch (error) {
             console.error('Error fetching home timeline:', error.message);
             return { status: 500, error: 'Failed to fetch home timeline' };
         }
     }
 
-    async searchTweets(credentials, query, maxTweets, searchMode = SearchMode.Latest, cursor) {
+    async searchTweets(credentials, query, maxTweets, searchMode = SearchMode.Latest, cursor, useCache = true) {
         try {
+            const cacheKey = `${query}_${searchMode}_${maxTweets}`;
+            
+            // Check cache if enabled
+            if (useCache && !cursor) { // Only use cache for initial searches, not paginated ones
+                const cachedResults = await this.client.getCachedData(cacheKey, 'search', TwitterHelper.THIRTY_MINUTES_MS);
+                if (cachedResults) {
+                    return cachedResults;
+                }
+            }
+
             const client = await this.client.getClient(credentials);
             const result = await Promise.race([
                 client.fetchSearchTweets(query, maxTweets, searchMode, cursor),
                 new Promise((resolve) => setTimeout(() => resolve({ tweets: [] }), 15000))
             ]);
+
+            // Cache the results if enabled, not paginated, and we have valid data
+            if (useCache && !cursor && result?.tweets && result.tweets.length > 0) {
+                await this.client.setCachedData(cacheKey, 'search', result, TwitterHelper.THIRTY_MINUTES_MS);
+            }
+
             return result ?? { tweets: [] };
         } catch (error) {
             console.error('Error searching tweets:', error.message);

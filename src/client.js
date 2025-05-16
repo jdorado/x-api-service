@@ -161,7 +161,7 @@ export class TwitterClient {
         return client;
     }
 
-    async getCachedData(key, type) {
+    async getCachedData(key, type, cacheDurationMs = 43200000) { // default 12 hours
         try {
             const mongoClient = await this.initMongoClient();
             const db = mongoClient.db(this.dbName);
@@ -171,9 +171,9 @@ export class TwitterClient {
             
             if (!cacheEntry) return null;
             
-            // Check if cache is still valid (12 hours)
+            // Check if cache is still valid using passed duration
             const cacheAge = Date.now() - cacheEntry.timestamp;
-            if (cacheAge > 43200000) return null; // 12 hours in milliseconds
+            if (cacheAge > cacheDurationMs) return null;
             
             return cacheEntry.data;
         } catch (error) {
@@ -182,7 +182,7 @@ export class TwitterClient {
         }
     }
 
-    async setCachedData(key, type, data) {
+    async setCachedData(key, type, data, cacheDurationMs = 43200000) { // default 12 hours
         try {
             const mongoClient = await this.initMongoClient();
             const db = mongoClient.db(this.dbName);
@@ -193,7 +193,8 @@ export class TwitterClient {
                 {
                     $set: {
                         data,
-                        timestamp: Date.now()
+                        timestamp: Date.now(),
+                        expiresAt: Date.now() + cacheDurationMs
                     }
                 },
                 { upsert: true }

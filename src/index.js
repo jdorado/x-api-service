@@ -7,9 +7,32 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import swaggerJsDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
+import { loadSecrets } from './keychain.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, '../.env') });
+
+export const SECRETS_CONFIG = [
+    ['general', 'MONGO_CONNECTION'],
+];
+
+// Load secrets from iCloud Keychain if enabled
+if (process.env.USE_KEYCHAIN === 'true') {
+    try {
+        console.log('🔐 Loading secrets from iCloud Keychain...');
+        const secretsLoaded = await loadSecrets(SECRETS_CONFIG);
+        if (secretsLoaded) {
+            console.log('✅ All secrets loaded successfully from iCloud Keychain');
+        } else {
+            console.warn('⚠️  Some secrets could not be loaded from iCloud Keychain');
+        }
+    } catch (error) {
+        console.error('❌ Error loading secrets from iCloud Keychain:', error.message);
+        console.log('Continuing with environment variables from .env file...');
+    }
+} else {
+    console.log('📄 Using environment variables from .env file (USE_KEYCHAIN not set to true)');
+}
 
 const app = express();
 const port = process.env.PORT || 6011;

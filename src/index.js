@@ -101,7 +101,7 @@ app.use((req, res, next) => {
 });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 const twitterHelper = new TwitterHelper();
 
@@ -384,7 +384,7 @@ app.post('/api/search', validateCredentials, async (req, res) => {
  * /api/tweet:
  *   post:
  *     summary: Post a tweet
- *     description: Create a new tweet, retweet, or quote tweet
+ *     description: Create a new tweet, retweet, or quote tweet with optional media attachments
  *     requestBody:
  *       required: true
  *       content:
@@ -400,6 +400,22 @@ app.post('/api/search', validateCredentials, async (req, res) => {
  *                   quote_tweet_id:
  *                     type: string
  *                     description: ID of the tweet to quote
+ *                   reply_to_id:
+ *                     type: string
+ *                     description: ID of the tweet to reply to
+ *                   mediaData:
+ *                     type: array
+ *                     description: Array of media objects with raw bytes data
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         data:
+ *                           type: string
+ *                           description: Base64 encoded image/video bytes or array of byte values
+ *                         mediaType:
+ *                           type: string
+ *                           description: MIME type (e.g., 'image/jpeg', 'image/png', 'video/mp4')
+ *                           example: 'image/jpeg'
  *     responses:
  *       200:
  *         description: Successfully posted tweet
@@ -414,13 +430,47 @@ app.post('/api/search', validateCredentials, async (req, res) => {
  */
 app.post('/api/tweet', validateCredentials, async (req, res) => {
     try {
-        const { text, quote_tweet_id} = req.body;
-        if (!text && !quote_tweet_id) {
+        const { text, quote_tweet_id, mediaData } = req.body;
+        
+        if (!text && !quote_tweet_id && (!mediaData || mediaData.length === 0)) {
             return res.status(400).json({
-                error: 'Text is required'
+                error: 'Text, quote_tweet_id, or mediaData is required'
             });
         }
-        const tweet = await twitterHelper.sendTweet(req.body);
+
+        // Process media data if provided
+        let processedMediaData = [];
+        if (mediaData && Array.isArray(mediaData)) {
+            processedMediaData = mediaData.map(media => {
+                let buffer;
+                
+                // Handle different data formats
+                if (typeof media.data === 'string') {
+                    // Assume base64 encoded string
+                    buffer = Buffer.from(media.data, 'base64');
+                } else if (Array.isArray(media.data)) {
+                    // Array of byte values
+                    buffer = Buffer.from(media.data);
+                } else if (Buffer.isBuffer(media.data)) {
+                    // Already a buffer
+                    buffer = media.data;
+                } else {
+                    throw new Error('Invalid media data format. Expected base64 string, byte array, or Buffer.');
+                }
+                
+                return {
+                    data: buffer,
+                    mediaType: media.mediaType || 'image/jpeg'
+                };
+            });
+        }
+
+        const credentials = {
+            ...req.body,
+            mediaData: processedMediaData.length > 0 ? processedMediaData : undefined
+        };
+
+        const tweet = await twitterHelper.sendTweet(credentials);
         res.json(tweet);
     } catch (error) {
         res.status(500).json({ error: error.message });

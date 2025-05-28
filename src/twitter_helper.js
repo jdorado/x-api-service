@@ -198,16 +198,18 @@ export class TwitterHelper {
     async sendTweet(credentials) {
         try {
             const client = await this.client.getClient(credentials);
-            const {text, reply_to_id, quote_tweet_id} = credentials;
+            const {text, reply_to_id, quote_tweet_id, mediaData} = credentials;
             let standardTweetResult;
             if (quote_tweet_id && !text){
                 await client.retweet(quote_tweet_id);
                 return {'retweet': true}
             }
             else if (quote_tweet_id) {
-                standardTweetResult = await client.sendQuoteTweet(text, quote_tweet_id);
+                standardTweetResult = await client.sendQuoteTweet(text, quote_tweet_id, {
+                    mediaData: mediaData || []
+                });
             } else {
-                standardTweetResult = await client.sendTweet(text, reply_to_id);
+                standardTweetResult = await client.sendTweet(text, reply_to_id, mediaData);
             }
             const body = await standardTweetResult.json();
             if (!body?.data?.create_tweet?.tweet_results?.result) {

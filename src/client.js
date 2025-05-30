@@ -33,7 +33,7 @@ export class TwitterClient {
     }
 
     async getClient(credentials) {
-        const { username, password, email, twoFactorSecret } = credentials;
+        const { username, password, email, twoFactorSecret, cookies } = credentials;
 
         try {
             // Try to use existing client if already logged in
@@ -44,17 +44,22 @@ export class TwitterClient {
             const client = new Scraper();
 
             // Try cookies in the following order:
-            // 1. In-memory cookies
+            // 1. Passed cookies (if provided)
+            if (cookies && await this.tryPassedCookies(client, username, cookies)) {
+                return this.saveClientAndReturn(username, client);
+            }
+
+            // 2. In-memory cookies
             if (await this.tryInMemoryCookies(client, username)) {
                 return this.saveClientAndReturn(username, client);
             }
 
-            // 2. MongoDB cookies
+            // 3. MongoDB cookies
             if (await this.tryMongoCookies(client, username)) {
                 return this.saveClientAndReturn(username, client);
             }
 
-            // 3. Fresh login
+            // 4. Fresh login
             if (await this.tryFreshLogin(client, username, password, email, twoFactorSecret)) {
                 return this.saveClientAndReturn(username, client);
             }
@@ -76,6 +81,21 @@ export class TwitterClient {
             } catch (error) {
                 console.error('Error checking existing client login status:', error.message);
             }
+        }
+        return false;
+    }
+
+    async tryPassedCookies(client, username, cookies) {
+        try {
+            await this.setCookiesOnClient(client, cookies);
+            if (await client.isLoggedIn()) {
+                // Save the successful cookies to both in-memory and MongoDB
+                await this.saveCookies(username, cookies);
+                TwitterClient.cookies[username] = cookies; // Cache in memory
+                return true;
+            }
+        } catch (error) {
+            console.error('Failed to use passed cookies:', error.message);
         }
         return false;
     }
@@ -150,9 +170,16 @@ export class TwitterClient {
     }
 
     async setCookiesOnClient(client, cookies) {
-        const cookieStrings = cookies.map(cookie =>
-            `${cookie.key}=${cookie.value}; Domain=${cookie.domain}; Path=${cookie.path}${cookie.secure ? '; Secure' : ''}${cookie.httpOnly ? '; HttpOnly' : ''}; SameSite=${cookie.sameSite || 'Lax'}`
-        );
+        const cookieStrings = cookies.map(cookie => {
+            // Transform all x.com domains to twitter.com for compatibility with agent-twitter-client
+            let domain = cookie.domain;
+            if (domain && domain.includes('x.com')) {
+                // Normalize all x.com variations to .twitter.com (works across all subdomains)
+                domain = '.twitter.com';
+            }
+            
+            return `${cookie.key}=${cookie.value}; Domain=${domain}; Path=${cookie.path}${cookie.secure ? '; Secure' : ''}${cookie.httpOnly ? '; HttpOnly' : ''}; SameSite=${cookie.sameSite || 'Lax'}`;
+        });
         await client.setCookies(cookieStrings);
     }
 

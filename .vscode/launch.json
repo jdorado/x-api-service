@@ -5,16 +5,17 @@
       "name": "Debug with Nodemon",
       "type": "node",
       "request": "launch",
-      "program": "${workspaceFolder}/node_modules/.bin/nodemon",
-      "args": ["--inspect", "src/index.js"],
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "debug"],
       "env": {
         "NODE_ENV": "development"
       },
       "console": "integratedTerminal",
-      "restart": true
+      "restart": true,
+      "skipFiles": ["<node_internals>/**"]
     },
     {
-      "name": "Launch Program",
+      "name": "Debug Node.js (Direct)",
       "type": "node",
       "request": "launch",
       "program": "${workspaceFolder}/src/index.js",
@@ -22,17 +23,7 @@
         "NODE_ENV": "development"
       },
       "console": "integratedTerminal",
-      "restart": true,
-      "runtimeArgs": ["--experimental-modules"]
-    },
-    {
-      "name": "Attach to Process",
-      "type": "node",
-      "request": "attach",
-      "port": 9229,
-      "restart": true,
-      "localRoot": "${workspaceFolder}",
-      "remoteRoot": "${workspaceFolder}"
+      "skipFiles": ["<node_internals>/**"]
     }
   ]
 } 

@@ -214,12 +214,12 @@ export class TwitterHelper {
             const body = await standardTweetResult.json();
             if (!body?.data?.create_tweet?.tweet_results?.result) {
                 console.error("Error sending tweet; Bad response:", body);
-                return { status: 500, error: 'Failed to send tweet' };
+                return { status: 500, error: body.errors[0].message };
             }
             return body.data.create_tweet.tweet_results.result;
         } catch (error) {
             console.error('Error sending tweet:', error.message);
-            return { status: 500, error: 'Failed to send tweet' };
+            return { status: 500, error: error.message };
         }
     }
 

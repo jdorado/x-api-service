@@ -79,7 +79,16 @@ export class TwitterHelper {
     async getTweet(credentials, tweetId) {
         try {
             const client = await this.client.getClient(credentials);
-            return await client.getTweet(tweetId);
+            const tweet = await client.getTweet(tweetId);
+            
+            // Remove circular references using JSON.parse/stringify
+            return JSON.parse(JSON.stringify(tweet, (key, value) => {
+                // Skip circular reference properties that cause issues
+                if (key === 'inReplyToStatus' || key === 'thread') {
+                    return undefined;
+                }
+                return value;
+            }));
         } catch (error) {
             console.error('Error getting tweet:', error.message);
             return { status: 500, error: `Failed to fetch tweet: ${error.message}` };

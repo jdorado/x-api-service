@@ -34,6 +34,7 @@ export class TwitterClient {
 
     async getClient(credentials) {
         const { username, password, email, twoFactorSecret, cookies } = credentials;
+        let lastError = null;
 
         try {
             // Try to use existing client if already logged in
@@ -45,26 +46,46 @@ export class TwitterClient {
 
             // Try cookies in the following order:
             // 1. Passed cookies (if provided)
-            if (cookies && await this.tryPassedCookies(client, username, cookies)) {
-                return this.saveClientAndReturn(username, client);
-            }
+            // if (cookies && await this.tryPassedCookies(client, username, cookies)) {
+            //     return this.saveClientAndReturn(username, client);
+            // }
 
-            // 2. In-memory cookies
-            if (await this.tryInMemoryCookies(client, username)) {
-                return this.saveClientAndReturn(username, client);
-            }
+            // // 2. In-memory cookies
+            // if (await this.tryInMemoryCookies(client, username)) {
+            //     return this.saveClientAndReturn(username, client);
+            // }
 
-            // 3. MongoDB cookies
-            if (await this.tryMongoCookies(client, username)) {
-                return this.saveClientAndReturn(username, client);
-            }
+            // // 3. MongoDB cookies
+            // if (await this.tryMongoCookies(client, username)) {
+            //     return this.saveClientAndReturn(username, client);
+            // }
 
             // 4. Fresh login
-            if (await this.tryFreshLogin(client, username, password, email, twoFactorSecret)) {
-                return this.saveClientAndReturn(username, client);
+            try {
+                if (await this.tryFreshLogin(client, username, password, email, twoFactorSecret)) {
+                    return this.saveClientAndReturn(username, client);
+                }
+            } catch (loginError) {
+                lastError = loginError;
             }
 
-            throw new Error('Failed to authenticate');
+            // Extract meaningful error message
+            let errorMessage = 'All authentication methods failed';
+            if (lastError?.message) {
+                try {
+                    // Try to parse if it's a JSON error response
+                    const errorObj = JSON.parse(lastError.message);
+                    if (errorObj.errors && errorObj.errors.length > 0) {
+                        errorMessage = errorObj.errors[0].message;
+                    } else {
+                        errorMessage = lastError.message;
+                    }
+                } catch {
+                    // If not JSON, use the message as is
+                    errorMessage = lastError.message;
+                }
+            }
+            throw new Error(`Failed to authenticate: ${errorMessage}`);
         } catch (error) {
             console.error('Error in getClient:', error.message);
             throw error;
@@ -145,10 +166,11 @@ export class TwitterClient {
                 TwitterClient.cookies[username] = newCookies; // Cache in memory
                 return true;
             }
+            return false;
         } catch (error) {
             console.error('Failed to login:', error.message);
+            throw error; // Propagate the actual error instead of returning false
         }
-        return false;
     }
 
     async saveCookies(username, cookies) {

@@ -37,7 +37,7 @@ export class TwitterHelper {
             return profile;
         } catch (error) {
             console.error('Error getting profile:', error.message);
-            return { status: 500, error: 'Failed to fetch profile' };
+            return { status: 500, error: `Failed to fetch profile: ${error.message}` };
         }
     }
 
@@ -72,7 +72,7 @@ export class TwitterHelper {
             return profile;
         } catch (error) {
             console.error('Error getting target profile:', error.message);
-            return { status: 500, error: 'Failed to fetch target profile' };
+            return { status: 500, error: `Failed to fetch target profile: ${error.message}` };
         }
     }
 
@@ -82,7 +82,7 @@ export class TwitterHelper {
             return await client.getTweet(tweetId);
         } catch (error) {
             console.error('Error getting tweet:', error.message);
-            return { status: 500, error: 'Failed to fetch tweet' };
+            return { status: 500, error: `Failed to fetch tweet: ${error.message}` };
         }
     }
 
@@ -108,7 +108,7 @@ export class TwitterHelper {
             return tweets;
         } catch (error) {
             console.error('Error getting user tweets:', error.message);
-            return { status: 500, error: 'Failed to fetch user tweets' };
+            return { status: 500, error: `Failed to fetch user tweets: ${error.message}` };
         }
     }
 
@@ -161,7 +161,7 @@ export class TwitterHelper {
             return formattedTimeline;
         } catch (error) {
             console.error('Error fetching home timeline:', error.message);
-            return { status: 500, error: 'Failed to fetch home timeline' };
+            return { status: 500, error: `Failed to fetch home timeline: ${error.message}` };
         }
     }
 
@@ -191,7 +191,7 @@ export class TwitterHelper {
             return result ?? { tweets: [] };
         } catch (error) {
             console.error('Error searching tweets:', error.message);
-            return { status: 500, error: 'Failed to search tweets' };
+            return { status: 500, error: `Failed to search tweets: ${error.message}` };
         }
     }
 
@@ -234,7 +234,7 @@ export class TwitterHelper {
             });
         } catch (error) {
             console.error('Error sending tweet with poll:', error.message);
-            return { status: 500, error: 'Failed to send tweet with poll' };
+            return { status: 500, error: `Failed to send tweet with poll: ${error.message}` };
         }
     }
 
@@ -271,7 +271,7 @@ export class TwitterHelper {
             return following;
         } catch (error) {
             console.error('Error getting following:', error.message);
-            return { status: 500, error: 'Failed to fetch following users' };
+            return { status: 500, error: `Failed to fetch following users: ${error.message}` };
         }
     }
 }

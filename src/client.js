@@ -46,19 +46,19 @@ export class TwitterClient {
 
             // Try cookies in the following order:
             // 1. Passed cookies (if provided)
-            // if (cookies && await this.tryPassedCookies(client, username, cookies)) {
-            //     return this.saveClientAndReturn(username, client);
-            // }
+            if (cookies && await this.tryPassedCookies(client, username, cookies)) {
+                return this.saveClientAndReturn(username, client);
+            }
 
-            // // 2. In-memory cookies
-            // if (await this.tryInMemoryCookies(client, username)) {
-            //     return this.saveClientAndReturn(username, client);
-            // }
+            // 2. In-memory cookies
+            if (await this.tryInMemoryCookies(client, username)) {
+                return this.saveClientAndReturn(username, client);
+            }
 
-            // // 3. MongoDB cookies
-            // if (await this.tryMongoCookies(client, username)) {
-            //     return this.saveClientAndReturn(username, client);
-            // }
+            // 3. MongoDB cookies
+            if (await this.tryMongoCookies(client, username)) {
+                return this.saveClientAndReturn(username, client);
+            }
 
             // 4. Fresh login
             try {
